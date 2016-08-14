@@ -84,11 +84,32 @@ class DS1307(BaseRTC):
         """Return ``True`` if and only if the clock is running."""
         return bool(self._register(0x00) & 0b10000000)
 
-    def square_wave_pin_mode(self, value=None):
-        """Get or set the square wave pin mode."""
+    def pin_frequency(self, value=None):
+        """
+        Get or set the square wave pin frequency in hertz. Set to -1 to
+        switch the pin off. Available values: 0, 1, 4000, 8000 and 32000 Hz.
+        """
         if value is None:
-            return self._register(self._SQUARE_WAVE_REGISTER) & 0x93
-        self._register(self._SQUARE_WAVE_REGISTER, bytearray((value,)))
+            return {
+                0x00: 0,
+                0x80: -1,
+                0x10: 1,
+                0x11: 4000,
+                0x12: 8000,
+                0x13: 32000,
+            }[self._register(self._SQUARE_WAVE_REGISTER) & 0x93]
+        try:
+            buffer = bytearray(({
+                0: 0x00,
+                -1: 0x80,
+                1: 0x10,
+                4000: 0x11,
+                8000: 0x12,
+                32000: 0x13,
+            }[value],))
+        except KeyError:
+            raise ValueError("only 0, 1Hz, 4kHz, 8kHz and 32kHz are supported")
+        self._register(self._SQUARE_WAVE_REGISTER, buffer)
 
     def memory(self, address, buffer=None):
         """Read or write the non-volatile random access memory."""
@@ -110,11 +131,30 @@ class DS3231(BaseRTC):
                 self._register(self._STATUS_REGISTER) & 0b01111111)
         return super().datetime(datetime)
 
-    def square_wave_pin_mode(self, value=None):
-        """Get or set the square wave pin mode."""
+    def pin_frequency(self, value=None):
+        """
+        Get or set the square wave pin frequency. Available values are:
+        1, 1000, 4000 and 8000 Hz. 0 switches it off.
+        """
         if value is None:
-            return self._register(self._SQUARE_WAVE_REGISTER) & 0x93
-        self._register(self._SQUARE_WAVE_REGISTER, bytearray((value,)))
+            return {
+                0x01: 0,
+                0x00: 1,
+                0x08: 1000,
+                0x10: 4000,
+                0x18: 8000,
+            }[self._register(self._SQUARE_WAVE_REGISTER) & 0x93]
+        try:
+            buffer = bytearray(({
+                0: 0x01,
+                1: 0x00,
+                1000: 0x08,
+                4000: 0x10,
+                8000: 0x18,
+            }[value],))
+        except KeyError:
+            raise ValueError("only 1Hz, 1kHz, 4kHz and 8kHz are supported")
+        self._register(self._SQUARE_WAVE_REGISTER, buffer)
 
 
 class PCF8523(BaseRTC):
@@ -130,9 +170,35 @@ class PCF8523(BaseRTC):
             self._register(self._CONTROL3_REGISTER, 0x00) # battery switchover
         return super().datetime(datetime)
 
-    def square_wave_pin_mode(self, value=None):
-        """Get or set the square wave pin mode."""
+    def pin_frequency(self, value=None):
+        """
+        Get or set the square wave pin frequency. Available values are:
+        1, 32, 1000, 4000, 8000, 16000 and 32000 Hz. 0 switches it off.
+        """
         if value is None:
-            return (self._register(self._SQUARE_WAVE_REGISTER) >> 3) & 0x07
-        self._register(self._SQUARE_WAVE_REGISTER, bytearray((value << 3,)))
+            return {
+                7: 0,
+                6: 1,
+                5: 32,
+                4: 1000,
+                3: 4000,
+                2: 8000,
+                1: 16000,
+                0: 32000,
+            }[(self._register(self._SQUARE_WAVE_REGISTER) >> 3) & 0x07]
+        try:
+            buffer = bytearray(({
+                0: 7,
+                1: 6,
+                32: 5,
+                1000: 4,
+                4000: 3,
+                8000: 2,
+                16000: 1,
+                32000: 0,
+            }[value << 3],))
+        except KeyError:
+            raise ValueError("only 1Hz, 32Hz, 1kHz, 4kHz, 8kHz, 16kHz "
+                             "and 32kHz are supported")
+        self._register(self._SQUARE_WAVE_REGISTER, buffer)
 
