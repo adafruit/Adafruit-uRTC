@@ -26,4 +26,5 @@ Utilities
 *********
 
 .. autofunction:: datetime_tuple
-.. autofunction:: mktime
+.. autofunction:: tuple2seconds
+.. autofunction:: seconds2tuple

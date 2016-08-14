@@ -12,7 +12,7 @@ DateTimeTuple = ucollections.namedtuple("DateTimeTuple",
 
 def datetime_tuple(year, month, day, weekday=0, hour=0, minute=0,
                    second=0, millisecond=0):
-    """Factory function for DateTimeTuple."""
+    """Factory function for ``DateTimeTuple``."""
     return DateTimeTuple(year, month, day, weekday, hour, minute,
                          second, millisecond)
 
@@ -27,10 +27,16 @@ def bin2bcd(value):
     return value + 6 * (value // 10)
 
 
-def mktime(datetime):
+def tuple2seconds(datetime):
     """Convert ``DateTimeTuple`` to seconds since Jan 1, 2000."""
     return utime.mktime((datetime.year, datetime.month, datetime.day,
         datetime.hour, datetime.minute, datetime.second, datetime.weekday, 0))
+
+
+def seconds2tuple(seconds):
+    """Convert seconds since Jan 1, 2000 to ``DateTimeTuple``."""
+    year, month, day, hour, minute, second, weekday, _yday = utime.localtime()
+    return DateTimeTuple(year, month, day, weekday, hour, minute, second, 0)
 
 
 class BaseRTC:
@@ -127,8 +133,8 @@ class DS3231(BaseRTC):
 
     def datetime(self, datetime):
         if datetime is not None:
-            self._register(self._STATUS_REGISTER,
-                self._register(self._STATUS_REGISTER) & 0b01111111)
+            status = self._register(self._STATUS_REGISTER) & 0b01111111
+            self._register(self._STATUS_REGISTER, bytearray((status,)))
         return super().datetime(datetime)
 
     def pin_frequency(self, value=None):
@@ -167,7 +173,8 @@ class PCF8523(BaseRTC):
 
     def datetime(self, datetime):
         if datetime is not None:
-            self._register(self._CONTROL3_REGISTER, 0x00) # battery switchover
+            # battery switchover
+            self._register(self._CONTROL3_REGISTER, b'\x00')
         return super().datetime(datetime)
 
     def pin_frequency(self, value=None):
