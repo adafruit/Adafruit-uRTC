@@ -1,5 +1,9 @@
-import ucollections
-import utime
+try:
+    import ucollections
+    import utime
+except ImportError:
+    import collections as ucollections
+    import time as utime
 
 
 DateTimeTuple = ucollections.namedtuple("DateTimeTuple",
@@ -46,7 +50,7 @@ class BaseRTC:
 
         The ``datetime`` is a tuple in the form: ``(year, month, day,
         weekday, hour, minute, second, millisecond)``. If not specified,
-        the functions returns current date in time in the same format.
+        the method returns current date and time in the same format.
         """
         buffer = bytearray(7)
         if datetime is None:
