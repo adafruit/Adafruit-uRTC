@@ -101,6 +101,7 @@ class DS3231(BaseRTC):
     _SQUARE_WAVE_REGISTER = 0x0e
 
     def lost_power(self):
+        """Return ``True`` if the clock lost power and needs to be set."""
         return bool(self._register(self._STATUS_REGISTER) & 0b10000000)
 
     def datetime(self, datetime):
