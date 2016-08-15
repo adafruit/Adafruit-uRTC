@@ -12,11 +12,11 @@ def datetime_tuple(year, month, day, weekday=0, hour=0, minute=0,
                          second, millisecond)
 
 
-def bcd2bin(value):
+def _bcd2bin(value):
     return value - 6 * (value >> 4)
 
 
-def bin2bcd(value):
+def _bin2bcd(value):
     return value + 6 * (value // 10)
 
 
@@ -30,7 +30,7 @@ def seconds2tuple(seconds):
     return DateTimeTuple(year, month, day, weekday, hour, minute, second, 0)
 
 
-class BaseRTC:
+class _BaseRTC:
     def __init__(self, i2c, address=0x68):
         self.i2c = i2c
         self.address = address
@@ -57,22 +57,22 @@ class BaseRTC:
             self.i2c.readfrom_mem_into(self.address, self._DATETIME_REGISTER,
                                        buffer)
             return datetime_tuple(
-                year=bcd2bin(buffer[6]) + 2000,
-                month=bcd2bin(buffer[5]),
-                day=bcd2bin(buffer[4]),
-                weekday=bcd2bin(buffer[3]),
-                hour=bcd2bin(buffer[2]),
-                minute=bcd2bin(buffer[1]),
-                second=bcd2bin(buffer[0]),
+                year=_bcd2bin(buffer[6]) + 2000,
+                month=_bcd2bin(buffer[5]),
+                day=_bcd2bin(buffer[4]),
+                weekday=_bcd2bin(buffer[3]),
+                hour=_bcd2bin(buffer[2]),
+                minute=_bcd2bin(buffer[1]),
+                second=_bcd2bin(buffer[0]),
             )
         datetime = datetime_tuple(*datetime)
-        buffer[0] = bin2bcd(datetime.second)
-        buffer[1] = bin2bcd(datetime.minute)
-        buffer[2] = bin2bcd(datetime.hour)
-        buffer[3] = bin2bcd(datetime.weekday)
-        buffer[4] = bin2bcd(datetime.day)
-        buffer[5] = bin2bcd(datetime.month)
-        buffer[6] = bin2bcd(datetime.year - 2000)
+        buffer[0] = _bin2bcd(datetime.second)
+        buffer[1] = _bin2bcd(datetime.minute)
+        buffer[2] = _bin2bcd(datetime.hour)
+        buffer[3] = _bin2bcd(datetime.weekday)
+        buffer[4] = _bin2bcd(datetime.day)
+        buffer[5] = _bin2bcd(datetime.month)
+        buffer[6] = _bin2bcd(datetime.year - 2000)
         self._register(self._DATETIME_REGISTER, buffer)
 
     def alarm_time(self, datetime=None):
@@ -81,24 +81,26 @@ class BaseRTC:
             self.i2c.redfrom_mem_into(self.address, self._ALARM_REGISTER,
                                       buffer)
             return datetime_tuple(
-                weekday=bcd2bin(buffer[3] & 0x7f) if buffer[0] & 0x80 else None,
-                day=bcd2bin(buffer[2] & 0x7f) if buffer[0] & 0x80 else None,
-                hour=bcd2bin(buffer[1] & 0x7f) if buffer[0] & 0x80 else None,
-                minute=bcd2bin(buffer[0] & 0x7f) if buffer[0] & 0x80 else None,
+                weekday=_bcd2bin(
+                    buffer[3] & 0x7f) if buffer[0] & 0x80 else None,
+                day=_bcd2bin(buffer[2] & 0x7f) if buffer[0] & 0x80 else None,
+                hour=_bcd2bin(buffer[1] & 0x7f) if buffer[0] & 0x80 else None,
+                minute=_bcd2bin(
+                    buffer[0] & 0x7f) if buffer[0] & 0x80 else None,
             )
         datetime = datetime_tuple(*datetime)
-        buffer[0] = (bin2bcd(datetime.minute)
+        buffer[0] = (_bin2bcd(datetime.minute)
                      if datetime.minute is not None else 0x80)
-        buffer[1] = (bin2bcd(datetime.hour)
+        buffer[1] = (_bin2bcd(datetime.hour)
                      if datetime.hour is not None else 0x80)
-        buffer[2] = (bin2bcd(datetime.day)
+        buffer[2] = (_bin2bcd(datetime.day)
                      if datetime.day is not None else 0x80)
-        buffer[3] = (bin2bcd(datetime.weekday) | 0b01000000
+        buffer[3] = (_bin2bcd(datetime.weekday) | 0b01000000
                      if datetime.weekday is not None else 0x80)
         self._register(self._ALARM_REGISTER, buffer)
 
 
-class DS1307(BaseRTC):
+class DS1307(_BaseRTC):
     _NVRAM_REGISTER = 0x08
     _DATETIME_REGISTER = 0x00
     _SQUARE_WAVE_REGISTER = 0x07
@@ -113,7 +115,7 @@ class DS1307(BaseRTC):
         raise NotImplementedError("alarms not available")
 
 
-class DS3231(BaseRTC):
+class DS3231(_BaseRTC):
     _CONTROL_REGISTER = 0x0e
     _STATUS_REGISTER = 0x0f
     _DATETIME_REGISTER = 0x00
@@ -136,7 +138,7 @@ class DS3231(BaseRTC):
         return super().datetime(datetime)
 
 
-class PCF8523(BaseRTC):
+class PCF8523(_BaseRTC):
     _CONTROL1_REGISTER = 0x00
     _CONTROL2_REGISTER = 0x01
     _CONTROL3_REGISTER = 0x02
