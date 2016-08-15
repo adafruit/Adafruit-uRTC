@@ -6,9 +6,8 @@ except ImportError:
     import time as utime
 
 
-DateTimeTuple = ucollections.namedtuple("DateTimeTuple",
-    ["year", "month", "day", "weekday", "hour", "minute", "second",
-     "millisecond"])
+DateTimeTuple = ucollections.namedtuple("DateTimeTuple", ["year", "month",
+    "day", "weekday", "hour", "minute", "second", "millisecond"])
 
 
 def datetime_tuple(year, month, day, weekday=0, hour=0, minute=0,
@@ -53,14 +52,14 @@ class BaseRTC:
 
     def _flag(self, register, mask, value=None):
         """Get or set the value of flags in a register."""
-        data = self._register(self._CONTROL1_REGISTER)
+        data = self._register(register)
         if value is None:
-            return data & mask == mask
+            return bool(data & mask)
         if value:
             data |= mask
         else:
             data &= ~mask
-        self._register(self._CONTROL1_REGISTER, bytearray((data,)))
+        self._register(register, bytearray((data,)))
 
 
     def datetime(self, datetime=None):
@@ -94,6 +93,37 @@ class BaseRTC:
         buffer[6] = bin2bcd(datetime.year - 2000)
         self._register(self._DATETIME_REGISTER, buffer)
 
+    def alarm_time(self, datetime=None):
+        """Get or set the alarm time.
+
+        The ``datetime`` is a tuple in the same format as for ``datetime()``.
+        Only ``day``, ``hour``, ``minute`` and ``weekday`` values are used,
+        the rest is ignored. If a value is ``None``, it will also be ignored.
+        When the values that are not ``None`` match the current date and time,
+        the alarm will be enabled.
+        """
+
+        buffer = bytearray(4)
+        if datetime is None:
+            self.i2c.redfrom_mem_into(self.address, self._ALARM_REGISTER,
+                                      buffer)
+            return datetime_tuple(
+                weekday=bcd2bin(buffer[3] & 0x7f) if buffer[0] & 0x80 else None,
+                day=bcd2bin(buffer[2] & 0x7f) if buffer[0] & 0x80 else None,
+                hour=bcd2bin(buffer[1] & 0x7f) if buffer[0] & 0x80 else None,
+                minute=bcd2bin(buffer[0] & 0x7f) if buffer[0] & 0x80 else None,
+            )
+        datetime = datetime_tuple(*datetime)
+        buffer[0] = (bin2bcd(datetime.minute)
+                     if datetime.minute is not None else 0x80)
+        buffer[1] = (bin2bcd(datetime.hour)
+                     if datetime.hour is not None else 0x80)
+        buffer[2] = (bin2bcd(datetime.day)
+                     if datetime.day is not None else 0x80)
+        buffer[3] = (bin2bcd(datetime.weekday) | 0b01000000
+                     if datetime.weekday is not None else 0x80)
+        self._register(self._ALARM_REGISTER, buffer)
+
 
 class DS1307(BaseRTC):
     _NVRAM_REGISTER = 0x08
@@ -110,13 +140,23 @@ class DS1307(BaseRTC):
 
 
 class DS3231(BaseRTC):
+    _CONTROL_REGISTER = 0x0e
     _STATUS_REGISTER = 0x0f
     _DATETIME_REGISTER = 0x00
+    _ALARM_REGISTER = 0x07
     _SQUARE_WAVE_REGISTER = 0x0e
 
     def lost_power(self):
         """Return ``True`` if the clock lost power and needs to be set."""
         return bool(self._register(self._STATUS_REGISTER) & 0b10000000)
+
+    def alarm(self, value=None):
+        """Get or set the status of alarm."""
+        return self._flag(self._STATUS_REGISTER, 0b00000011, value)
+
+    def stop(self, value=None):
+        """Get or set the stopped clock status."""
+        return self._flag(self._CONTROL_REGISTER, 0b10000000, value)
 
     def datetime(self, datetime=None):
         if datetime is not None:
@@ -158,42 +198,12 @@ class PCF8523(BaseRTC):
         """Returns ``True`` if the battery is low and needs replacing."""
         return self._flag(self._CONTROL3_REGISTER, 0b00000100)
 
+    def alarm(self, value=None):
+        """Get or set the status of alarm."""
+        return self._flag(self._CONTROL2_REGISTER, 0b00001000, value)
+
     def datetime(self, datetime=None):
         if datetime is not None:
             self.lost_power(False) # clear the battery switchover flag
         return super().datetime(datetime)
 
-    def alarm(self, value=None):
-        """Get or set the status of alarm."""
-        return self._flag(self._CONTROL2_REGISTER, 0b00001000, value)
-
-    def alarm_time(self, datetime=None):
-        """Get or set the alarm time.
-
-        The ``datetime`` is a tuple in the same format as for ``datetime()``.
-        Only ``day``, ``hour``, ``minute`` and ``weekday`` values are used,
-        the rest is ignored. If a value is ``None``, it will also be ignored.
-        When the values that are not ``None`` match the current date and time,
-        the alarm will be enabled.
-        """
-
-        buffer = bytearray(4)
-        if datetime is None:
-            self.i2c.redfrom_mem_into(self.address, self._ALARM_REGISTER,
-                                      buffer)
-            return datetime_tuple(
-                weekday=bcd2bin(buffer[3] & 0x7f) if buffer[0] & 0x80 else None,
-                day=bcd2bin(buffer[2] & 0x7f) if buffer[0] & 0x80 else None,
-                hour=bcd2bin(buffer[1] & 0x7f) if buffer[0] & 0x80 else None,
-                minute=bcd2bin(buffer[0] & 0x7f) if buffer[0] & 0x80 else None,
-            )
-        datetime = datetime_tuple(*datetime)
-        buffer[0] = (bin2bcd(datetime.minute)
-                     if datetime.minute is not None else 0x80)
-        buffer[1] = (bin2bcd(datetime.hour)
-                     if datetime.hour is not None else 0x80)
-        buffer[2] = (bin2bcd(datetime.day)
-                     if datetime.day is not None else 0x80)
-        buffer[3] = (bin2bcd(datetime.weekday)
-                     if datetime.weekday is not None else 0x80)
-        self._register(self._ALARM_REGISTER, buffer)
