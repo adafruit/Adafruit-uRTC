@@ -50,6 +50,18 @@ class BaseRTC:
             return self.i2c.readfrom_mem(self.address, register, 1)[0]
         self.i2c.writeto_mem(self.address, register, buffer)
 
+    def _flag(self, register, mask, value=None):
+        """Get or set the value of flags in a register."""
+        data = self._register(self._CONTROL1_REGISTER)
+        if value is None:
+            return data & mask == mask
+        if value:
+            data |= mask
+        else:
+            data &= ~mask
+        self._register(self._CONTROL1_REGISTER, bytearray((data,)))
+
+
     def datetime(self, datetime=None):
         """
         Get or set the current date and time.
@@ -164,17 +176,46 @@ class DS3231(BaseRTC):
 
 
 class PCF8523(BaseRTC):
+    _CONTROL1_REGISTER = 0x00
+    _CONTROL2_REGISTER = 0x01
     _CONTROL3_REGISTER = 0x02
     _DATETIME_REGISTER = 0x03
+    _ALARM_REGISTER = 0x0a
     _SQUARE_WAVE_REGISTER = 0x0f
 
-    def is_initialized(self):
-        return self._register(self._CONTROL3_REGISTER) & 0xE0 != 0xE0
+    def __init__(self, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
+        self.init()
+
+    def init(self):
+        # Enable battery switchover and low-battery detection.
+        self._flag(self._CONTROL3_REGISTER, 0b11100000, False)
+
+    def reset(self):
+        """Does a software reset."""
+        self._flag(self._CONTROL1_REGISTER, 0x58, True)
+        self.init()
+
+    def lost_power(self, value):
+        """Get or set the power lost flag."""
+        return self._flag(self._CONTROL3_REGISTER, 0b00010000, value)
+
+    def stop(self, value=None):
+        """Get or set the stopped clock status."""
+        return self._flag(self._CONTROL1_REGISTER, 0b00010000, value)
+
+# We always want 24-hour mode.
+#    def hour12(self, value):
+#        """Get or set the 12-hour mode."""
+#        return self._flag(self._CONTROL1_REGISTER, 0b00001000, value)
+
+    def battery_low(self):
+        """Returns ``True`` if the battery is low and needs replacing."""
+        return self._flag(self._CONTROL3_REGISTER, 0b00000100)
 
     def datetime(self, datetime):
         if datetime is not None:
-            # battery switchover
-            self._register(self._CONTROL3_REGISTER, b'\x00')
+            self.lost_power(False) # clear the battery switchover flag
         return super().datetime(datetime)
 
     def pin_frequency(self, value=None):
@@ -209,3 +250,36 @@ class PCF8523(BaseRTC):
                              "and 32kHz are supported")
         self._register(self._SQUARE_WAVE_REGISTER, buffer)
 
+    def alarm(self, value=None):
+        """Get or set the status of alarm."""
+        return self._flag(self._CONTROL2_REGISTER, 0b00001000, value)
+
+    def alarm_time(self, datetime=None):
+        """Get or set the alarm time.
+
+        The ``datetime`` is a tuple in the same format as for ``datetime()``.
+        Only ``day``, ``hour``, ``minute`` and ``weekday`` values are used,
+        the rest is ignored. If a value is ``None``, it will also be ignored.
+        When the values that are not ``None`` match the current date and time,
+        the alarm will be enabled.
+        """
+
+        buffer = bytearray(4)
+        if datetime is None:
+            self.i2c.redfrom_mem_into(self, self._ALARM_REGISTER, buffer)
+            return datetime_tuple(
+                weekday=bcd2bin(buffer[3] & 0x7f) if buffer[0] & 0x80 else None,
+                day=bcd2bin(buffer[2] & 0x7f) if buffer[0] & 0x80 else None,
+                hour=bcd2bin(buffer[1] & 0x7f) if buffer[0] & 0x80 else None,
+                minute=bcd2bin(buffer[0] & 0x7f) if buffer[0] & 0x80 else None,
+            )
+        datetime = datetime_tuple(*datetime)
+        buffer[0] = (bin2bcd(datetime.minute)
+                     if datetime.minute is not None else 0x80)
+        buffer[1] = (bin2bcd(datetime.hour)
+                     if datetime.hour is not None else 0x80)
+        buffer[2] = (bin2bcd(datetime.day)
+                     if datetime.day is not None else 0x80)
+        buffer[3] = (bin2bcd(datetime.weekday)
+                     if datetime.weekday is not None else 0x80)
+        self._register(self._ALARM_REGISTER, buffer)
