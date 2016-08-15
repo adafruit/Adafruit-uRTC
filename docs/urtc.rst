@@ -46,7 +46,8 @@ DS3231
 
         Get or set the alarm time.
 
-        The ``datetime`` is a tuple in the same format as for ``datetime``.
+        The ``datetime`` is a tuple in the same format as for ``datetime()``
+        method.
 
         Only ``day``, ``hour``, ``minute`` and ``weekday`` values are used,
         the rest is ignored. If a value is ``None``, it will also be ignored.
@@ -86,7 +87,8 @@ PCF8523
 
         Get or set the alarm time.
 
-        The ``datetime`` is a tuple in the same format as for ``datetime``.
+        The ``datetime`` is a tuple in the same format as for ``datetime()``
+        method.
 
         Only ``day``, ``hour``, ``minute`` and ``weekday`` values are used,
         the rest is ignored. If a value is ``None``, it will also be ignored.
@@ -122,7 +124,7 @@ Utilities
 
 .. class:: DateTimeTuple
 
-    A NamedTuple of the format required by the ``datetime`` methods.
+    A ``NamedTuple`` of the format required by the ``datetime`` methods.
 
 .. function:: datetime_tuple(year, month, day, weekday, hour, minute, second, millisecond)
 
