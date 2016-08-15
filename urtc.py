@@ -1,9 +1,5 @@
-try:
-    import ucollections
-    import utime
-except ImportError:
-    import collections as ucollections
-    import time as utime
+import ucollections
+import utime
 
 
 DateTimeTuple = ucollections.namedtuple("DateTimeTuple", ["year", "month",
@@ -12,29 +8,24 @@ DateTimeTuple = ucollections.namedtuple("DateTimeTuple", ["year", "month",
 
 def datetime_tuple(year, month, day, weekday=0, hour=0, minute=0,
                    second=0, millisecond=0):
-    """Factory function for ``DateTimeTuple``."""
     return DateTimeTuple(year, month, day, weekday, hour, minute,
                          second, millisecond)
 
 
 def bcd2bin(value):
-    """Convert from the BCD format to binary."""
     return value - 6 * (value >> 4)
 
 
 def bin2bcd(value):
-    """Convert from binary to BCD format."""
     return value + 6 * (value // 10)
 
 
 def tuple2seconds(datetime):
-    """Convert ``DateTimeTuple`` to seconds since Jan 1, 2000."""
     return utime.mktime((datetime.year, datetime.month, datetime.day,
         datetime.hour, datetime.minute, datetime.second, datetime.weekday, 0))
 
 
 def seconds2tuple(seconds):
-    """Convert seconds since Jan 1, 2000 to ``DateTimeTuple``."""
     year, month, day, hour, minute, second, weekday, _yday = utime.localtime()
     return DateTimeTuple(year, month, day, weekday, hour, minute, second, 0)
 
@@ -45,13 +36,11 @@ class BaseRTC:
         self.address = address
 
     def _register(self, register, buffer=None):
-        """Get or set the value of a register."""
         if buffer is None:
             return self.i2c.readfrom_mem(self.address, register, 1)[0]
         self.i2c.writeto_mem(self.address, register, buffer)
 
     def _flag(self, register, mask, value=None):
-        """Get or set the value of flags in a register."""
         data = self._register(register)
         if value is None:
             return bool(data & mask)
@@ -63,13 +52,6 @@ class BaseRTC:
 
 
     def datetime(self, datetime=None):
-        """
-        Get or set the current date and time.
-
-        The ``datetime`` is a tuple in the form: ``(year, month, day,
-        weekday, hour, minute, second, millisecond)``. If not specified,
-        the method returns current date and time in the same format.
-        """
         buffer = bytearray(7)
         if datetime is None:
             self.i2c.readfrom_mem_into(self.address, self._DATETIME_REGISTER,
@@ -94,15 +76,6 @@ class BaseRTC:
         self._register(self._DATETIME_REGISTER, buffer)
 
     def alarm_time(self, datetime=None):
-        """Get or set the alarm time.
-
-        The ``datetime`` is a tuple in the same format as for ``datetime()``.
-        Only ``day``, ``hour``, ``minute`` and ``weekday`` values are used,
-        the rest is ignored. If a value is ``None``, it will also be ignored.
-        When the values that are not ``None`` match the current date and time,
-        the alarm will be enabled.
-        """
-
         buffer = bytearray(4)
         if datetime is None:
             self.i2c.redfrom_mem_into(self.address, self._ALARM_REGISTER,
@@ -131,12 +104,13 @@ class DS1307(BaseRTC):
     _SQUARE_WAVE_REGISTER = 0x07
 
     def is_running(self):
-        """Return ``True`` if and only if the clock is running."""
         return bool(self._register(0x00) & 0b10000000)
 
     def memory(self, address, buffer=None):
-        """Read or write the non-volatile random access memory."""
         return self._register(self._NVRAM_REGISTER + address, buffer)
+
+    def alarm_time(self, datetime=None):
+        raise NotImplementedError("alarms not available")
 
 
 class DS3231(BaseRTC):
@@ -147,15 +121,12 @@ class DS3231(BaseRTC):
     _SQUARE_WAVE_REGISTER = 0x0e
 
     def lost_power(self):
-        """Return ``True`` if the clock lost power and needs to be set."""
         return bool(self._register(self._STATUS_REGISTER) & 0b10000000)
 
     def alarm(self, value=None):
-        """Get or set the status of alarm."""
         return self._flag(self._STATUS_REGISTER, 0b00000011, value)
 
     def stop(self, value=None):
-        """Get or set the stopped clock status."""
         return self._flag(self._CONTROL_REGISTER, 0b10000000, value)
 
     def datetime(self, datetime=None):
@@ -182,24 +153,19 @@ class PCF8523(BaseRTC):
         self._flag(self._CONTROL3_REGISTER, 0b11100000, False)
 
     def reset(self):
-        """Does a software reset."""
         self._flag(self._CONTROL1_REGISTER, 0x58, True)
         self.init()
 
     def lost_power(self, value=None):
-        """Get or set the power lost flag."""
         return self._flag(self._CONTROL3_REGISTER, 0b00010000, value)
 
     def stop(self, value=None):
-        """Get or set the stopped clock status."""
         return self._flag(self._CONTROL1_REGISTER, 0b00010000, value)
 
     def battery_low(self):
-        """Returns ``True`` if the battery is low and needs replacing."""
         return self._flag(self._CONTROL3_REGISTER, 0b00000100)
 
     def alarm(self, value=None):
-        """Get or set the status of alarm."""
         return self._flag(self._CONTROL2_REGISTER, 0b00001000, value)
 
     def datetime(self, datetime=None):
