@@ -18,14 +18,15 @@ DS1307
         a tuple in the same format.
 
 
-    .. method:: is_running()
-
-        Return ``True`` if and only if the clock is running.
-
-
     .. method:: memory(address, buffer=None)
 
         Read or write the non-volatile random acces memory.
+
+    .. method:: stop(value=None)
+
+        Get or set the status of the stop clock flag. This can be used to start
+        the clock at a precise moment in time.
+
 
 DS3231
 ======

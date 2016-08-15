@@ -105,10 +105,12 @@ class DS1307(_BaseRTC):
     _DATETIME_REGISTER = 0x00
     _SQUARE_WAVE_REGISTER = 0x07
 
-    def is_running(self):
-        return bool(self._register(0x00) & 0b10000000)
+    def stop(self, value=None):
+        return self._flag(0x00, 0b10000000, value)
 
     def memory(self, address, buffer=None):
+        if buffer is not None and address + len(buffer) > 56:
+            raise ValueError("address out of range")
         return self._register(self._NVRAM_REGISTER + address, buffer)
 
     def alarm_time(self, datetime=None):
@@ -123,7 +125,7 @@ class DS3231(_BaseRTC):
     _SQUARE_WAVE_REGISTER = 0x0e
 
     def lost_power(self):
-        return bool(self._register(self._STATUS_REGISTER) & 0b10000000)
+        return self._flag(self._STATUS_REGISTER, 0b10000000)
 
     def alarm(self, value=None):
         return self._flag(self._STATUS_REGISTER, 0b00000011, value)
