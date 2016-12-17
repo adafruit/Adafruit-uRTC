@@ -31,6 +31,8 @@ def seconds2tuple(seconds):
 
 
 class _BaseRTC:
+    _SWAP_DAY_WEEKDAY = False
+
     def __init__(self, i2c, address=0x68):
         self.i2c = i2c
         self.address = address
@@ -69,8 +71,12 @@ class _BaseRTC:
         buffer[0] = _bin2bcd(datetime.second)
         buffer[1] = _bin2bcd(datetime.minute)
         buffer[2] = _bin2bcd(datetime.hour)
-        buffer[3] = _bin2bcd(datetime.weekday)
-        buffer[4] = _bin2bcd(datetime.day)
+        if self._SWAP_DAY_WEEKDAY:
+            buffer[4] = _bin2bcd(datetime.weekday)
+            buffer[3] = _bin2bcd(datetime.day)
+        else:
+            buffer[3] = _bin2bcd(datetime.weekday)
+            buffer[4] = _bin2bcd(datetime.day)
         buffer[5] = _bin2bcd(datetime.month)
         buffer[6] = _bin2bcd(datetime.year - 2000)
         self._register(self._DATETIME_REGISTER, buffer)
@@ -147,6 +153,7 @@ class PCF8523(_BaseRTC):
     _DATETIME_REGISTER = 0x03
     _ALARM_REGISTER = 0x0a
     _SQUARE_WAVE_REGISTER = 0x0f
+    _SWAP_DAY_WEEKDAY = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
