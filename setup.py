@@ -4,7 +4,7 @@ from distutils.core import setup
 setup(
     name='urtc',
     py_modules=['urtc'],
-    version="1.0",
+    version="1.1",
     description="Drivers for RTC modules for MicroPython.",
     long_description="""\
 This library lets you communicate with several real-time clock modules. At
