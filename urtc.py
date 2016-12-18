@@ -58,11 +58,17 @@ class _BaseRTC:
         if datetime is None:
             self.i2c.readfrom_mem_into(self.address, self._DATETIME_REGISTER,
                                        buffer)
+            if self._SWAP_DAY_WEEKDAY:
+                day = buffer[3]
+                weekday = buffer[4]
+            else:
+                day = buffer[4]
+                weekday = buffer[3]
             return datetime_tuple(
                 year=_bcd2bin(buffer[6]) + 2000,
                 month=_bcd2bin(buffer[5]),
-                day=_bcd2bin(buffer[4]),
-                weekday=_bcd2bin(buffer[3]),
+                day=_bcd2bin(day),
+                weekday=_bcd2bin(weekday),
                 hour=_bcd2bin(buffer[2]),
                 minute=_bcd2bin(buffer[1]),
                 second=_bcd2bin(buffer[0]),
