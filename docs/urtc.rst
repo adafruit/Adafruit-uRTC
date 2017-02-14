@@ -42,24 +42,26 @@ DS3231
         describing the time to be set. If not specified, the method returns
         a tuple in the same format.
 
-    .. method:: alarm_time(self, datetime=None)
+    .. method:: alarm_time(self, datetime=None, alarm=0)
 
         Get or set the alarm time.
 
         The ``datetime`` is a tuple in the same format as for ``datetime()``
         method.
 
-        Only ``day``, ``hour``, ``minute`` and ``weekday`` values are used,
-        the rest is ignored. If a value is ``None``, it will also be ignored.
-        When the values match the current date and time, the alarm will be
-        triggered.
+        The ``alarm`` is the id of the alarm, it can be either 0 or 1.
+
+        For alarm 1, only ``day``, ``hour``, ``minute`` and ``weekday`` values
+        are used, the rest is ignored. Alarm 0 additionally supports seconds.
+        If a value is ``None``, it will also be ignored.  When the values match
+        the current date and time, the alarm will be triggered.
 
     .. method:: lost_power()
 
         Return ``True`` if the clock lost the power recently and needs to be
         re-set.
 
-    .. method:: alarm(value=None)
+    .. method:: alarm(value=None, alarm=0)
 
         Get or set the value of the alarm flag. This is set to ``True`` when
         an alarm is triggered, and has to be cleared manually.
