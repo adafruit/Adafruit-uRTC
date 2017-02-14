@@ -160,6 +160,8 @@ class DS3231(_BaseRTC):
         buffer[1] = (_bin2bcd(datetime.hour)
                      if datetime.hour is not None else 0x80)
         if datetime.day is not None:
+            if datetime.weekday is not None:
+                raise ValueError("can't specify both day and weekday")
             buffer[2] = _bin2bcd(datetime.day) | 0b01000000
         elif datetime.weekday is not None:
             buffer[2] = _bin2bcd(datetime.weekday)
