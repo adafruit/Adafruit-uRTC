@@ -6,18 +6,18 @@ DateTimeTuple = ucollections.namedtuple("DateTimeTuple", ["year", "month",
     "day", "weekday", "hour", "minute", "second", "millisecond"])
 
 
-def datetime_tuple(year, month, day, weekday=0, hour=0, minute=0,
-                   second=0, millisecond=0):
+def datetime_tuple(year=None, month=None, day=None, weekday=None, hour=None,
+                   minute=None, second=None, millisecond=None):
     return DateTimeTuple(year, month, day, weekday, hour, minute,
                          second, millisecond)
 
 
 def _bcd2bin(value):
-    return value - 6 * (value >> 4)
+    return (value or 0) - 6 * (value >> 4)
 
 
 def _bin2bcd(value):
-    return value + 6 * (value // 10)
+    return (value or 0) + 6 * (value // 10)
 
 
 def tuple2seconds(datetime):
@@ -54,10 +54,9 @@ class _BaseRTC:
 
 
     def datetime(self, datetime=None):
-        buffer = bytearray(7)
         if datetime is None:
-            self.i2c.readfrom_mem_into(self.address, self._DATETIME_REGISTER,
-                                       buffer)
+            buffer = self.i2c.readfrom_mem(self.address,
+                                           self._DATETIME_REGISTER, 7)
             if self._SWAP_DAY_WEEKDAY:
                 day = buffer[3]
                 weekday = buffer[4]
@@ -74,6 +73,7 @@ class _BaseRTC:
                 second=_bcd2bin(buffer[0]),
             )
         datetime = datetime_tuple(*datetime)
+        buffer = bytearray(7)
         buffer[0] = _bin2bcd(datetime.second)
         buffer[1] = _bin2bcd(datetime.minute)
         buffer[2] = _bin2bcd(datetime.hour)
@@ -86,30 +86,6 @@ class _BaseRTC:
         buffer[5] = _bin2bcd(datetime.month)
         buffer[6] = _bin2bcd(datetime.year - 2000)
         self._register(self._DATETIME_REGISTER, buffer)
-
-    def alarm_time(self, datetime=None):
-        buffer = bytearray(4)
-        if datetime is None:
-            self.i2c.redfrom_mem_into(self.address, self._ALARM_REGISTER,
-                                      buffer)
-            return datetime_tuple(
-                weekday=_bcd2bin(
-                    buffer[3] & 0x7f) if buffer[0] & 0x80 else None,
-                day=_bcd2bin(buffer[2] & 0x7f) if buffer[0] & 0x80 else None,
-                hour=_bcd2bin(buffer[1] & 0x7f) if buffer[0] & 0x80 else None,
-                minute=_bcd2bin(
-                    buffer[0] & 0x7f) if buffer[0] & 0x80 else None,
-            )
-        datetime = datetime_tuple(*datetime)
-        buffer[0] = (_bin2bcd(datetime.minute)
-                     if datetime.minute is not None else 0x80)
-        buffer[1] = (_bin2bcd(datetime.hour)
-                     if datetime.hour is not None else 0x80)
-        buffer[2] = (_bin2bcd(datetime.day)
-                     if datetime.day is not None else 0x80)
-        buffer[3] = (_bin2bcd(datetime.weekday) | 0b01000000
-                     if datetime.weekday is not None else 0x80)
-        self._register(self._ALARM_REGISTER, buffer)
 
 
 class DS1307(_BaseRTC):
@@ -125,22 +101,20 @@ class DS1307(_BaseRTC):
             raise ValueError("address out of range")
         return self._register(self._NVRAM_REGISTER + address, buffer)
 
-    def alarm_time(self, datetime=None):
-        raise NotImplementedError("alarms not available")
-
 
 class DS3231(_BaseRTC):
     _CONTROL_REGISTER = 0x0e
     _STATUS_REGISTER = 0x0f
     _DATETIME_REGISTER = 0x00
-    _ALARM_REGISTER = 0x07
+    _ALARM_REGISTERS = (0x07, 0x0b)
     _SQUARE_WAVE_REGISTER = 0x0e
 
     def lost_power(self):
         return self._flag(self._STATUS_REGISTER, 0b10000000)
 
-    def alarm(self, value=None):
-        return self._flag(self._STATUS_REGISTER, 0b00000011, value)
+    def alarm(self, value=None, alarm=0):
+        return self._flag(self._STATUS_REGISTER,
+                          0b00000011 & (1 << alarm), value)
 
     def stop(self, value=None):
         return self._flag(self._CONTROL_REGISTER, 0b10000000, value)
@@ -150,6 +124,44 @@ class DS3231(_BaseRTC):
             status = self._register(self._STATUS_REGISTER) & 0b01111111
             self._register(self._STATUS_REGISTER, bytearray((status,)))
         return super().datetime(datetime)
+
+    def alarm_time(self, datetime=None, alarm=0):
+        if datetime is None:
+            buffer = self.i2c.readfrom_mem(self.address,
+                                           self._ALARM_REGISTERS[alarm], 4)
+            day = None
+            weekday = None
+            if buffer[3] & 0b10000000:
+                pass
+            elif buffer[3] & 0b01000000:
+                day = _bcd2bin(buffer[3] & 0x3f)
+            else:
+                weekday = _bcd2bin(buffer[3] & 0x3f)
+            return datetime_tuple(
+                hour=_bcd2bin(buffer[2] &
+                              0x7f) if not buffer[2] & 0x80 else None,
+                minute=_bcd2bin(buffer[1] &
+                                0x7f) if not buffer[1] & 0x80 else None,
+                second=_bcd2bin(buffer[0] &
+                                0x7f) if not buffer[0] & 0x80 else None,
+                day=day,
+                weekday=weekday,
+            )
+        datetime = datetime_tuple(*datetime)
+        buffer = bytearray(4)
+        buffer[0] = (_bin2bcd(datetime.second)
+                     if datetime.second is not None else 0x80)
+        buffer[1] = (_bin2bcd(datetime.minute)
+                     if datetime.minute is not None else 0x80)
+        buffer[2] = (_bin2bcd(datetime.hour)
+                     if datetime.hour is not None else 0x80)
+        if datetime.day is not None:
+            buffer[3] = _bin2bcd(datetime.day) | 0b01000000
+        elif datetime.weekday is not None:
+            buffer[3] = _bin2bcd(datetime.weekday)
+        else:
+            buffer[3] = 0x80
+        self._register(self._ALARM_REGISTERS[alarm], buffer)
 
 
 class PCF8523(_BaseRTC):
@@ -190,3 +202,28 @@ class PCF8523(_BaseRTC):
             self.lost_power(False) # clear the battery switchover flag
         return super().datetime(datetime)
 
+    def alarm_time(self, datetime=None):
+        if datetime is None:
+            buffer = self.i2c.readfrom_mem(self.address,
+                                           self._ALARM_REGISTER, 4)
+            return datetime_tuple(
+                weekday=_bcd2bin(buffer[3] &
+                                 0x7f) if not buffer[3] & 0x80 else None,
+                day=_bcd2bin(buffer[2] &
+                             0x7f) if not buffer[2] & 0x80 else None,
+                hour=_bcd2bin(buffer[1] &
+                              0x7f) if not buffer[1] & 0x80 else None,
+                minute=_bcd2bin(buffer[0] &
+                                0x7f) if not buffer[0] & 0x80 else None,
+            )
+        datetime = datetime_tuple(*datetime)
+        buffer = bytearray(4)
+        buffer[0] = (_bin2bcd(datetime.minute)
+                     if datetime.minute is not None else 0x80)
+        buffer[1] = (_bin2bcd(datetime.hour)
+                     if datetime.hour is not None else 0x80)
+        buffer[2] = (_bin2bcd(datetime.day)
+                     if datetime.day is not None else 0x80)
+        buffer[3] = (_bin2bcd(datetime.weekday) | 0b01000000
+                     if datetime.weekday is not None else 0x80)
+        self._register(self._ALARM_REGISTER, buffer)

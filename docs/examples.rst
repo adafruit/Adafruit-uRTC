@@ -6,7 +6,7 @@ with ESP8266, you can use the following code::
 
     import urtc
     from machine import I2C, Pin
-    i2c = I2C(Pin(5), Pin(4)) # The SCL is on GPIO5, the SDA is on GPIO4
+    i2c = I2C(scl=Pin(5), sda=Pin(4))
     rtc = urtc.PCF8523(i2c)
 
 now you can set the current time::
