@@ -135,9 +135,9 @@ class DS3231(_BaseRTC):
             if buffer[2] & 0b10000000:
                 pass
             elif buffer[2] & 0b01000000:
-                day = _bcd2bin(buffer[3] & 0x3f)
+                day = _bcd2bin(buffer[2] & 0x3f)
             else:
-                weekday = _bcd2bin(buffer[3] & 0x3f)
+                weekday = _bcd2bin(buffer[2] & 0x3f)
             if alarm == 0:
                 # handle seconds
                 buffer = self.i2c.readfrom_mem(
