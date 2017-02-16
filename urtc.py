@@ -138,6 +138,10 @@ class DS3231(_BaseRTC):
                 day = _bcd2bin(buffer[2] & 0x3f)
             else:
                 weekday = _bcd2bin(buffer[2] & 0x3f)
+            minute=_bcd2bin(buffer[0] &
+                            0x7f) if not buffer[1] & 0x80 else None
+            hour=_bcd2bin(buffer[1] &
+                          0x7f) if not buffer[2] & 0x80 else None
             if alarm == 0:
                 # handle seconds
                 buffer = self.i2c.readfrom_mem(
@@ -145,13 +149,11 @@ class DS3231(_BaseRTC):
                 second=_bcd2bin(buffer[0] &
                             0x7f) if not buffer[0] & 0x80 else None,
             return datetime_tuple(
-                hour=_bcd2bin(buffer[1] &
-                              0x7f) if not buffer[2] & 0x80 else None,
-                minute=_bcd2bin(buffer[0] &
-                                0x7f) if not buffer[1] & 0x80 else None,
-                second=second,
                 day=day,
                 weekday=weekday,
+                hour=hour,
+                minute=minute,
+                second=second,
             )
         datetime = datetime_tuple(*datetime)
         buffer = bytearray(3)
