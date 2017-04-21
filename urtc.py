@@ -26,7 +26,8 @@ def tuple2seconds(datetime):
 
 
 def seconds2tuple(seconds):
-    year, month, day, hour, minute, second, weekday, _yday = utime.localtime()
+    (year, month, day, hour, minute,
+     second, weekday, _yday) = utime.localtime(seconds)
     return DateTimeTuple(year, month, day, weekday, hour, minute, second, 0)
 
 
