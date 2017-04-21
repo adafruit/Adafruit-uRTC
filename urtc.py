@@ -13,11 +13,11 @@ def datetime_tuple(year=None, month=None, day=None, weekday=None, hour=None,
 
 
 def _bcd2bin(value):
-    return (value or 0) - 6 * (value >> 4)
+    return (value or 0) - 6 * ((value or 0) >> 4)
 
 
 def _bin2bcd(value):
-    return (value or 0) + 6 * (value // 10)
+    return (value or 0) + 6 * ((value or 0) // 10)
 
 
 def tuple2seconds(datetime):
