@@ -66,6 +66,12 @@ DS3231
         Get or set the value of the alarm flag. This is set to ``True`` when
         an alarm is triggered, and has to be cleared manually.
 
+    .. method:: interrupt(alarm=0)
+
+            Configure the INT/SQW pin to be activated when an alarm occurs.
+            The INT/SQW pin may be connect to an interrupt pin on the MCU to wake
+            it from a power down (sleep) mode.
+
     .. method:: stop(value=None)
 
         Get or set the status of the stop clock flag. This can be used to start
