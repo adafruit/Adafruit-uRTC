@@ -68,9 +68,14 @@ DS3231
 
     .. method:: interrupt(alarm=0)
 
-            Configure the INT/SQW pin to be activated when an alarm occurs.
-            The INT/SQW pin may be connect to an interrupt pin on the MCU to wake
-            it from a power down (sleep) mode.
+        Configure the INT/SQW pin to be activated when an alarm occurs.
+        The INT/SQW pin may be connect to an interrupt pin on the MCU to wake
+        it from a power down (sleep) mode.
+
+    .. method:: no_interrupt()
+
+        Disable activation of the INT/SQW pin when an alarm occurs. This
+        disables both alarm 0 and alarm 1.
 
     .. method:: stop(value=None)
 
