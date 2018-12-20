@@ -172,9 +172,9 @@ class DS3231(_BaseRTC):
         if datetime.day is not None:
             if datetime.weekday is not None:
                 raise ValueError("can't specify both day and weekday")
-            buffer[2] = _bin2bcd(datetime.day) | 0b01000000
+            buffer[2] = _bin2bcd(datetime.day)
         elif datetime.weekday is not None:
-            buffer[2] = _bin2bcd(datetime.weekday)
+            buffer[2] = _bin2bcd(datetime.weekday) | 0b01000000
         else:
             buffer[2] = 0x80
         self._register(self._ALARM_REGISTERS[alarm], buffer)
