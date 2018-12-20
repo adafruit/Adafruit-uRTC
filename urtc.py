@@ -117,6 +117,13 @@ class DS3231(_BaseRTC):
         return self._flag(self._STATUS_REGISTER,
                           0b00000011 & (1 << alarm), value)
 
+    def interrupt(self, alarm=0):
+        return self._flag(self._CONTROL_REGISTER,
+                          0b00000100 | (1 << alarm), 1)
+
+    def no_interrupt(self):
+        return self._flag(self._CONTROL_REGISTER, 0b00000011, 0)
+
     def stop(self, value=None):
         return self._flag(self._CONTROL_REGISTER, 0b10000000, value)
 
